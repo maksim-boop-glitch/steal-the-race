@@ -5,8 +5,8 @@ export class Input {
     window.addEventListener('keydown', e => {
       if (!this.keys[e.code]) this._justPressed[e.code] = true;
       this.keys[e.code] = true;
-      // Prevent scrolling with arrow/space keys
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space',
+           'ShiftLeft','ShiftRight'].includes(e.code)) {
         e.preventDefault();
       }
     });
@@ -16,10 +16,7 @@ export class Input {
   isDown(code) { return !!this.keys[code]; }
 
   wasPressed(code) {
-    if (this._justPressed[code]) {
-      delete this._justPressed[code];
-      return true;
-    }
+    if (this._justPressed[code]) { delete this._justPressed[code]; return true; }
     return false;
   }
 
@@ -41,6 +38,12 @@ export class Input {
         right:   this.isDown('ArrowRight'),
       };
     }
+  }
+
+  // P1: ShiftLeft   P2: ShiftRight
+  getJump(playerIndex) {
+    if (playerIndex === 0) return this.isDown('ShiftLeft');
+    return this.isDown('ShiftRight');
   }
 
   getAbilityPressed(playerIndex) {

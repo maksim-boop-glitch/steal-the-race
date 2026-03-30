@@ -12,101 +12,137 @@ export const RARITY_COLOR = {
 };
 
 export const ABILITIES = {
+
+  // ── COMMON ───────────────────────────────────────────────────────────────
+
   SPEED_BOOST: {
     id: 'SPEED_BOOST', name: 'Speed Boost', rarity: 'common',
-    desc: '+60% speed 3s',
-    activate(car) {
+    desc: '3× speed for 3s',
+    activate(car, game) {
       if (car.frozen) return;
-      car.speedMult *= 1.6;
-      setTimeout(() => { car.speedMult /= 1.6; }, 3000);
+      car.speedMult *= 3.0;
+      // Orange exhaust glow is handled by car.update via speedMult check
+      if (game) game._showBoostEffect(car, 3000);
+      setTimeout(() => {
+        car.speedMult /= 3.0;
+      }, 3000);
     }
   },
+
   SHIELD: {
     id: 'SHIELD', name: 'Shield', rarity: 'common',
     desc: 'Block next hit',
-    activate(car) {
+    activate(car, game) {
       car.shielded = true;
       if (car.shieldMesh) car.shieldMesh.visible = true;
+      if (game) game.ui.flashCenter('🛡 SHIELD UP', '#00eeff', 900);
     }
   },
+
   OIL_SLICK: {
     id: 'OIL_SLICK', name: 'Oil Slick', rarity: 'common',
-    desc: 'Drop oil behind',
+    desc: 'Drop oil that spins enemies',
     activate(car, game) {
-      game.spawnHazard('oil', car.mesh.position.clone(), car);
+      if (game) game.spawnHazard('oil', car.mesh.position.clone(), car);
     }
   },
+
   EMP: {
     id: 'EMP', name: 'EMP Pulse', rarity: 'common',
-    desc: 'Slow nearby 2s',
+    desc: 'Slow all nearby cars',
     activate(car, game) {
-      game.empPulse(car, 22, 2000);
+      if (game) game.empPulse(car, 22, 2000);
     }
   },
+
   TURBO_LAUNCH: {
     id: 'TURBO_LAUNCH', name: 'Turbo Launch', rarity: 'common',
-    desc: 'Instant burst fwd',
-    activate(car) {
+    desc: 'Instant forward burst',
+    activate(car, game) {
       if (car.frozen) return;
       const fwd = new THREE.Vector3(0, 0, -1).applyEuler(car.mesh.rotation);
-      car.velocity.addScaledVector(fwd, 28);
+      car.velocity.addScaledVector(fwd, 90);
+      if (game) {
+        game._showBoostEffect(car, 600);
+        game.ui.flashCenter('💥 TURBO!', '#ff8800', 700);
+      }
     }
   },
+
+  // ── UNCOMMON ─────────────────────────────────────────────────────────────
+
   MISSILE: {
     id: 'MISSILE', name: 'Missile', rarity: 'uncommon',
     desc: 'Fire homing missile',
     activate(car, game) {
-      game.fireMissile(car);
+      if (game) {
+        game.fireMissile(car);
+        game.ui.flashCenter('🚀 MISSILE FIRED', '#ff6600', 900);
+      }
     }
   },
+
   TELEPORT: {
     id: 'TELEPORT', name: 'Teleport', rarity: 'uncommon',
     desc: 'Jump forward on track',
     activate(car, game) {
-      game.teleportForward(car);
-    }
-  },
-  FREEZE: {
-    id: 'FREEZE', name: 'Freeze Ray', rarity: 'uncommon',
-    desc: 'Freeze nearest 3s',
-    activate(car, game) {
-      game.freezeNearest(car, 3000);
-    }
-  },
-  MINES: {
-    id: 'MINES', name: 'Mine Layer', rarity: 'uncommon',
-    desc: 'Drop 3 mines',
-    activate(car, game) {
-      for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
-          const pos = car.mesh.position.clone();
-          pos.x += (Math.random() - 0.5) * 2;
-          pos.z += (Math.random() - 0.5) * 2;
-          game.spawnHazard('mine', pos, car);
-        }, i * 250);
+      if (game) {
+        game.teleportForward(car);
+        game.ui.flashCenter('✨ TELEPORT', '#aa88ff', 800);
       }
     }
   },
-  TIME_WARP: {
-    id: 'TIME_WARP', name: 'Time Warp', rarity: 'rare',
-    desc: 'Slow all others 4s',
+
+  FREEZE: {
+    id: 'FREEZE', name: 'Freeze Ray', rarity: 'uncommon',
+    desc: 'Freeze nearest enemy 3s',
     activate(car, game) {
-      game.timeWarp(car, 4000);
+      if (game) game.freezeNearest(car, 3000);
     }
   },
+
+  MINES: {
+    id: 'MINES', name: 'Mine Layer', rarity: 'uncommon',
+    desc: 'Drop 3 mines behind you',
+    activate(car, game) {
+      if (!game) return;
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+          const pos = car.mesh.position.clone();
+          const back = new THREE.Vector3(0, 0, 1).applyEuler(car.mesh.rotation);
+          pos.addScaledVector(back, 3 + i * 2);
+          pos.x += (Math.random() - 0.5) * 2;
+          game.spawnHazard('mine', pos, car);
+        }, i * 280);
+      }
+      game.ui.flashCenter('💣 MINES DROPPED', '#ff6600', 900);
+    }
+  },
+
+  // ── RARE ─────────────────────────────────────────────────────────────────
+
+  TIME_WARP: {
+    id: 'TIME_WARP', name: 'Time Warp', rarity: 'rare',
+    desc: 'Slow ALL others to 20% for 4s',
+    activate(car, game) {
+      if (game) game.timeWarp(car, 4000);
+    }
+  },
+
   GHOST: {
     id: 'GHOST', name: 'Ghost Mode', rarity: 'rare',
-    desc: 'Invincible 5s',
-    activate(car) {
+    desc: 'Invincible & pass obstacles 5s',
+    activate(car, game) {
       car.ghost = true;
       car.mesh.traverse(m => {
-        if (m.isMesh && m !== car.shieldMesh) {
+        if (m.isMesh && m !== car.shieldMesh && m !== car.iceMesh) {
           if (!m._origMat) m._origMat = m.material;
           const g = m.material.clone();
-          g.transparent = true; g.opacity = 0.35;
+          g.transparent = true; g.opacity = 0.3;
           m.material = g;
         }
       });
+      if (game) game.ui.flashCenter('👻 GHOST MODE', '#aaaaff', 1000);
       setTimeout(() => {
         car.ghost = false;
         car.mesh.traverse(m => {
@@ -115,25 +151,39 @@ export const ABILITIES = {
       }, 5000);
     }
   },
+
   MAGNET: {
     id: 'MAGNET', name: 'Magnet', rarity: 'rare',
-    desc: 'Pull all ability boxes',
+    desc: 'Pull all nearby ability boxes',
     activate(car, game) {
-      game.magnetPull(car, 40);
+      if (game) {
+        game.magnetPull(car, 40);
+        game.ui.flashCenter('🧲 MAGNET!', '#ffaa00', 900);
+      }
     }
   },
+
+  // ── LEGENDARY ────────────────────────────────────────────────────────────
+
   DEATH_ZONE: {
     id: 'DEATH_ZONE', name: 'Death Zone', rarity: 'legendary',
-    desc: 'Kill all within 30u',
+    desc: 'Kill ALL within 30 units',
     activate(car, game) {
-      game.deathZone(car, 30);
+      if (game) {
+        game.deathZone(car, 30);
+        game.ui.flashCenter('💀 DEATH ZONE 💀', '#ff0000', 1200);
+      }
     }
   },
+
   REWIND: {
     id: 'REWIND', name: 'Race Rewind', rarity: 'legendary',
-    desc: 'Rewind others to checkpoint',
+    desc: 'Rewind all others to last checkpoint',
     activate(car, game) {
-      game.rewindOthers(car);
+      if (game) {
+        game.rewindOthers(car);
+        game.ui.flashCenter('⏪ RACE REWIND!', '#ff88ff', 1200);
+      }
     }
   },
 };

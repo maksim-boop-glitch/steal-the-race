@@ -114,6 +114,7 @@ export class UI {
         <h3>Player 2</h3>
         <table class="keybind-table">
           <tr><td>↑↓←→</td><td>Move</td></tr>
+          <tr><td>Right Shift</td><td>Jump</td></tr>
           <tr><td>6 7 8 9 0</td><td>Abilities 1–5</td></tr>
         </table>
       </div>` : '';
@@ -127,6 +128,7 @@ export class UI {
             <h3>Player 1</h3>
             <table class="keybind-table">
               <tr><td>W A S D</td><td>Move</td></tr>
+              <tr><td>Left Shift</td><td>Jump</td></tr>
               <tr><td>1 2 3 4 5</td><td>Abilities 1–5</td></tr>
             </table>
           </div>
@@ -170,18 +172,28 @@ export class UI {
   showHUD(playerCount) {
     this._clear();
     this.splitLine.style.display = playerCount === 2 ? 'block' : 'none';
+    this.playerCount = playerCount;
 
     const panels = [];
     for (let i = 0; i < playerCount; i++) {
+      const keys = i === 0 ? 'WASD · Shift=Jump · 1-5' : '↑↓←→ · Shift=Jump · 6-0';
       panels.push(`
         <div class="player-panel p${i + 1}" id="panel-p${i + 1}">
-          <div class="player-name">P${i + 1} — ${i === 0 ? 'WASD · 1-5' : '↑↓←→ · 6-0'}</div>
+          <div class="player-name">P${i + 1} — ${keys}</div>
           <div class="lap-sp" id="lapsp-p${i + 1}">Lap 1/3 · 0 SP</div>
           <div class="ability-bar" id="abilitybar-p${i + 1}"></div>
         </div>`);
     }
+
+    // AI status panel in 1P mode
+    const aiPanel = playerCount === 1 ? `
+      <div class="player-panel p2" id="panel-ai" style="right:8px;border-color:#6644aa;">
+        <div class="player-name" style="color:#bb88ff">AI Opponent</div>
+        <div class="lap-sp" id="ai-status">Lap 1/3</div>
+      </div>` : '';
+
     const centerDiv = `<div id="center-info"></div>`;
-    this.el.innerHTML = panels.join('') + centerDiv;
+    this.el.innerHTML = panels.join('') + aiPanel + centerDiv;
   }
 
   updateHUD(playerIndex, player, car) {
