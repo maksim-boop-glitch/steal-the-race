@@ -7,19 +7,20 @@ export class Car {
   constructor(playerIndex) {
     this.playerIndex = playerIndex;
     this.velocity    = new THREE.Vector3();
-    this.angularVel  = 0;
     this.onGround    = false;
 
-    // ── Tuning (4× speed) ──────────────────────────────────────────────────
-    this.maxSpeed    = 88;
-    this.accel       = 72;
-    this.brakeForce  = 88;
-    this.turnSpeed   = 2.6;
+    // ── Tuning ────────────────────────────────────────────────────────────
+    this.maxSpeed    = 352;   // 4× previous (88)
+    this.accel       = 288;   // 4× previous (72)
+    this.brakeForce  = 352;   // 4× previous (88)
+    // Front-wheel turning: turning rate is proportional to current speed.
+    // Turning radius = maxSpeed / turnSpeed ≈ 352/15 ≈ 23 units.
+    this.turnSpeed   = 15;
     this.speedMult   = 1;
     this.slowMult    = 1;
     this.respawnDelay = 2000;
 
-    // ── State flags ────────────────────────────────────────────────────────
+    // ── State flags ───────────────────────────────────────────────────────
     this.dead         = false;
     this.shielded     = false;
     this.ghost        = false;
@@ -27,8 +28,8 @@ export class Car {
     this.doublePickup = false;
     this.predator     = false;
 
-    this.spawnPos = new THREE.Vector3();
-    this.spawnRot = 0;
+    this.spawnPos  = new THREE.Vector3();
+    this.spawnRot  = 0;
     this._lastCpPos = null;
     this._lastCpRot = 0;
 
@@ -68,17 +69,15 @@ export class Car {
       group.add(w);
     });
 
-    // Exhaust glow (speed boost indicator — hidden by default)
-    const exhaustGeo = new THREE.SphereGeometry(0.5, 8, 8);
+    // Exhaust glow (speed boost indicator)
     const exhaustMat = new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 0 });
-    this.exhaustMesh = new THREE.Mesh(exhaustGeo, exhaustMat);
+    this.exhaustMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), exhaustMat);
     this.exhaustMesh.position.set(0, 0, 1.8);
     group.add(this.exhaustMesh);
 
-    // EMP indicator ring (hidden by default)
-    const empRingGeo = new THREE.TorusGeometry(2, 0.2, 8, 32);
+    // EMP ring
     const empRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0 });
-    this.empRing = new THREE.Mesh(empRingGeo, empRingMat);
+    this.empRing = new THREE.Mesh(new THREE.TorusGeometry(2, 0.2, 8, 32), empRingMat);
     this.empRing.rotation.x = Math.PI / 2;
     this.empRing.position.y = 0.5;
     group.add(this.empRing);
@@ -92,7 +91,7 @@ export class Car {
     group.add(shieldMesh);
     this.shieldMesh = shieldMesh;
 
-    // Freeze ice overlay (hidden by default)
+    // Ice overlay (freeze)
     const iceMesh = new THREE.Mesh(
       new THREE.SphereGeometry(2.2, 8, 8),
       new THREE.MeshLambertMaterial({ color: 0x88ccff, transparent: true, opacity: 0 })
@@ -108,11 +107,10 @@ export class Car {
     ctx.font = 'bold 80px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.playerIndex === 1 && true ? 'AI' : `P${this.playerIndex + 1}`, 128, 64);
-    const labelTex = new THREE.CanvasTexture(canvas);
+    ctx.fillText(this.playerIndex === 1 ? 'AI' : 'P1', 128, 64);
     const label = new THREE.Mesh(
       new THREE.PlaneGeometry(1.6, 0.8),
-      new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthTest: false })
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthTest: false })
     );
     label.position.y = 1.8;
     label.renderOrder = 999;
@@ -130,7 +128,6 @@ export class Car {
     this._doRespawn();
   }
 
-  // Called when player hits a checkpoint — update respawn location
   saveCheckpoint(pos, rot) {
     this._lastCpPos = pos.clone();
     this._lastCpRot = rot;
@@ -144,12 +141,11 @@ export class Car {
     this.dead = true;
     this.frozen = false;
     this.velocity.set(0, 0, 0);
-    this.angularVel = 0;
     this.mesh.visible = false;
     setTimeout(() => this._doRespawn(), 1000);
   }
 
-  // Killed by another car — 2 second respawn
+  // Killed by car — 2 second respawn
   kill(killerCar) {
     if (this.ghost) return false;
     if (this.shielded) {
@@ -169,10 +165,9 @@ export class Car {
   _doRespawn() {
     this.dead = false;
     this.velocity.set(0, 0, 0);
-    this.angularVel = 0;
     const respawnPos = this._lastCpPos || this.spawnPos;
     this.mesh.position.copy(respawnPos);
-    this.mesh.position.y += 1; // spawn slightly above checkpoint surface
+    this.mesh.position.y += 1.5;
     this.mesh.rotation.set(0, this._lastCpRot || this.spawnRot, 0);
     this.mesh.visible = true;
     this.iceMesh.material.opacity = 0;
@@ -182,18 +177,18 @@ export class Car {
 
   rewindToCheckpoint() {
     this.velocity.set(0, 0, 0);
-    this.angularVel = 0;
     if (this._lastCpPos) {
       this.mesh.position.copy(this._lastCpPos);
-      this.mesh.position.y += 1;
+      this.mesh.position.y += 1.5;
       this.mesh.rotation.y = this._lastCpRot || 0;
     }
   }
 
-  // ── Main update ──────────────────────────────────────────────────────────
+  // ── Main update ───────────────────────────────────────────────────────────
 
   update(dt, movement, jump, track) {
     if (this.dead) return;
+
     if (this.frozen) {
       this.iceMesh.material.opacity = 0.45;
       return;
@@ -201,67 +196,68 @@ export class Car {
     this.iceMesh.material.opacity = 0;
 
     const effective = this.speedMult * this.slowMult;
+    const forward   = new THREE.Vector3(0, 0, -1).applyEuler(this.mesh.rotation);
 
-    // Steer
-    if (this.onGround) {
-      if (movement.left)  this.angularVel += this.turnSpeed * dt;
-      if (movement.right) this.angularVel -= this.turnSpeed * dt;
-    }
-    this.angularVel *= Math.pow(0.78, dt * 60);
-    this.mesh.rotation.y += this.angularVel * dt;
+    // ── Front-wheel steering (speed-dependent, no tank turning) ───────────
+    // Turn rate is proportional to speed — car cannot rotate while stationary.
+    const horizSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+    // Reaches full steering authority at 5% of maxSpeed
+    const speedFactor = Math.min(horizSpeed / (this.maxSpeed * 0.05), 1.0);
 
-    // Jump
+    if (movement.left)  this.mesh.rotation.y += this.turnSpeed * speedFactor * dt;
+    if (movement.right) this.mesh.rotation.y -= this.turnSpeed * speedFactor * dt;
+
+    // ── Jump ──────────────────────────────────────────────────────────────
     if (jump && this.onGround) {
-      this.velocity.y = 22;
+      this.velocity.y = 25;
       this.onGround = false;
     }
 
-    const forward = new THREE.Vector3(0, 0, -1).applyEuler(this.mesh.rotation);
-    const maxSpd  = this.maxSpeed * effective;
-
+    // ── Horizontal acceleration (same in air as on ground) ────────────────
+    const maxSpd = this.maxSpeed * effective;
     if (movement.forward) this.velocity.addScaledVector(forward, this.accel * effective * dt);
     if (movement.back)    this.velocity.addScaledVector(forward, -this.brakeForce * effective * dt);
 
-    // Clamp XZ speed
-    const speed2d = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-    if (speed2d > maxSpd) {
-      const scale = maxSpd / speed2d;
+    // Clamp horizontal speed
+    const spd2d = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+    if (spd2d > maxSpd) {
+      const scale = maxSpd / spd2d;
       this.velocity.x *= scale;
       this.velocity.z *= scale;
     }
 
-    // Gravity
+    // ── Gravity ───────────────────────────────────────────────────────────
     this.velocity.y -= 55 * dt;
 
-    // Friction on ground
+    // ── Friction only on the ground (air = full horizontal control) ───────
     if (this.onGround) {
-      const friction = Math.pow(0.84, dt * 60);
-      this.velocity.x *= friction;
-      this.velocity.z *= friction;
+      if (!movement.forward && !movement.back) {
+        const friction = Math.pow(0.88, dt * 60);
+        this.velocity.x *= friction;
+        this.velocity.z *= friction;
+      }
       if (this.velocity.y < 0) this.velocity.y = 0;
     }
 
     this.mesh.position.addScaledVector(this.velocity, dt);
 
-    // Ground check
+    // ── Ground collision ──────────────────────────────────────────────────
     const ground = track.getGroundAt(this.mesh.position);
-    if (ground.hit && this.mesh.position.y <= ground.y + 0.32) {
-      this.mesh.position.y = ground.y + 0.32;
+    if (ground.hit && this.mesh.position.y <= ground.y + 0.35) {
+      this.mesh.position.y = ground.y + 0.35;
       this.velocity.y = 0;
       this.onGround = true;
     } else {
       this.onGround = false;
     }
 
-    // Exhaust glow when boosting
-    if (this._bodyMesh) {
-      this.exhaustMesh.material.opacity = this.speedMult > 1.5 ? 0.9 : 0;
-    }
+    // Exhaust glow while boosting
+    this.exhaustMesh.material.opacity = this.speedMult > 1.5 ? 0.9 : 0;
 
-    // EMP ring spin
+    // EMP ring decay
     if (this.empRing.material.opacity > 0) {
       this.empRing.rotation.y += dt * 4;
-      this.empRing.material.opacity = Math.max(0, this.empRing.material.opacity - dt * 0.5);
+      this.empRing.material.opacity = Math.max(0, this.empRing.material.opacity - dt * 0.6);
     }
   }
 

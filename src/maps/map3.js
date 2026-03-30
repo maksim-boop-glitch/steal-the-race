@@ -3,8 +3,16 @@ import { Track } from '../track.js';
 
 /**
  * MAP 3 — Neon Megacity
- * Rooftop racing at night. Multiple height levels, big gaps, neon lights.
- * Sky: dark midnight blue.
+ * Multi-level rooftop track. Uses STEP ramps (overlapping platforms at
+ * increasing heights) so the ground-detection creates a smooth gradient.
+ * All sections wide (22+ units) and overlap ≥ 4 units.
+ *
+ * Path (counterclockwise):
+ *   Spawn (ground, z=-12) → +Z straight (ground)
+ *   → corner (+X) → elevated straight (-Z)
+ *   → corner (-X, step DOWN) → bottom straight (+Z)
+ *   → corner (+X, step UP) → high straight (-Z)
+ *   → corner (-X, step DOWN) → return straight (+Z) → spawn
  */
 export function createMap3(scene) {
   const track = new Track(scene);
@@ -12,105 +20,124 @@ export function createMap3(scene) {
   track.sky  = 0x0a0a2a;
   track.deathY = -50;
 
-  const CONC  = 0x333344;   // concrete
-  const NEON1 = 0x220088;   // dark purple
-  const NEON2 = 0x002244;   // dark blue
-  const WALL  = 0x111122;
-  const OBS   = 0xff2266;
+  const CONC = 0x333344;
+  const NEON = 0x1a1a44;
+  const HIGH = 0x221133;
+  const OBS  = 0xff2266;
+  const W    = 22;
+  const H    = 1;
 
-  // ── Starting rooftop (tall building) ──
-  track.addPlatform(0, 10, -20, 14, 2, 40, CONC);
-  track.addWall(-7.5, 13.5, -20, 1, 4, 40, WALL);
-  track.addWall( 7.5, 13.5, -20, 1, 4, 40, WALL);
+  // Helper: step ramp between two heights over a given Z range at center X
+  function addRamp(cx, yLow, yHigh, zStart, zEnd, width = W) {
+    const steps = 4;
+    const zLen  = (zEnd - zStart) / steps;
+    for (let i = 0; i < steps; i++) {
+      const y  = yLow + (yHigh - yLow) * (i / (steps - 1));
+      const zc = zStart + zLen * (i + 0.5);
+      track.addPlatform(cx, y, zc, width, H, Math.abs(zLen) + 4, i % 2 === 0 ? CONC : NEON);
+    }
+  }
 
-  // Neon edge strips
-  track.addWall(0, 11.2, -40.5, 16, 0.3, 1, OBS);
-  track.addWall(0, 11.2,   0.5, 16, 0.3, 1, OBS);
+  // ── GROUND LEVEL (y = 0) ─────────────────────────────────────────────────
 
-  // ── Bridge gap to second building (east) ──
-  track.addPlatform(20, 10, -40, 12, 1, 10, NEON1);   // bridge (narrow)
-  // 8 unit gap after bridge
-  track.addPlatform(42, 8,  -40, 14, 2, 20, CONC);    // lower building
+  // Section A: start straight +Z  →  x:-11..11, z:-20..70
+  track.addPlatform(0, 0, 25, W, H, 90, CONC);
+  track.addWall(-12, 2, 25, 1, 4, 92, 0x111122);
+  track.addWall( 12, 2, 25, 1, 4, 92, 0x111122);
 
-  // ── East building straight ──
-  track.addPlatform(42, 8, -18, 14, 2, 30, CONC);
-  track.addWall(35.5, 10, -18, 1, 4, 30, WALL);
-  track.addWall(48.5, 10, -18, 1, 4, 30, WALL);
-  track.addObstacle(42, 9.5, -12, 2.5, 1.5, 2.5, OBS);
-  track.addObstacle(42, 9.5, -22, 2.5, 1.5, 2.5, OBS);
+  // Section B: top-left corner (ground) →  x:-11..80, z:62..90
+  track.addPlatform(35, 0, 76, 92, H, 28, CONC);
+  track.addWall(35, 2, 91, 94, 4, 1, 0x111122);
+  track.addWall(-13, 2, 76, 1, 4, 30, 0x111122);
 
-  // ── Ramp up to tall skyscraper ──
-  track.addPlatform(42, 8, -2,  12, 2, 8,  CONC);
-  track.addPlatform(42, 12, 10, 12, 2, 14, NEON2);   // top of skyscraper
-  track.addWall(35.5, 15, 10, 1, 5, 14, WALL);
-  track.addWall(48.5, 15, 10, 1, 5, 14, WALL);
+  track.addObstacle(10, 0.8, 76, 3, 1.5, 3, OBS);
+  track.addObstacle(55, 0.8, 76, 3, 1.5, 3, OBS);
 
-  // ── Long elevated bridge heading west (high) ──
-  track.addPlatform(18, 12, 17, 52, 1.5, 12, NEON2);  // long high bridge
-  track.addWall(18, 14, 11.5, 52, 3, 1, WALL);
-  track.addWall(18, 14, 22.5, 52, 3, 1, WALL);
-  track.addObstacle(25,  13, 17, 2, 2, 2, OBS);
-  track.addObstacle(10,  13, 17, 2, 2, 2, OBS);
-  track.addObstacle(-2,  13, 17, 2, 2, 2, OBS);
+  // ── STEP RAMP UP: ground (y=0) → elevated (y=8) ──────────────────────────
+  // Goes from x=70 at z=62..90, then ramp up heading -Z
+  // Ramp at x=80: z from 80 down to 20 (going -Z), rising from 0 to 8
+  addRamp(80, 0, 8, 80, 20, W);
 
-  // ── Gap then landing pad west ──
-  track.addPlatform(-18, 8, 17, 14, 2, 14, CONC);
-  // 8 unit gap between bridge end and this
+  // ── ELEVATED LEVEL (y = 8) ───────────────────────────────────────────────
 
-  // ── West rooftop, heading south ──
-  track.addPlatform(-18, 8, 4,  14, 2, 18, CONC);
-  track.addWall(-25, 10, 4, 1, 4, 18, WALL);
-  track.addWall(-11, 10, 4, 1, 4, 18, WALL);
+  // Section C: elevated straight -Z  →  x:69..91, z:-30..24
+  track.addPlatform(80, 8, -3, W, H, 54, HIGH);
+  track.addWall(69, 10, -3, 1, 4, 56, 0x220044);
+  track.addWall(91, 10, -3, 1, 4, 56, 0x220044);
 
-  // ── Ramp back down to start level ──
-  track.addPlatform(-18, 8,  -8, 12, 2, 10, CONC);
-  track.addPlatform(-18, 10, -18, 12, 2, 10, NEON1);  // step up
-  // step drops back
-  track.addPlatform(-10, 10, -28, 10, 1, 10, NEON1);
-  track.addPlatform(  0, 10, -36, 10, 1, 10, CONC);
+  track.addObstacle(76, 8.8,  10, 3, 1.5, 3, OBS);
+  track.addObstacle(84, 8.8, -20, 3, 1.5, 3, OBS);
 
-  // ── Checkpoints ──
-  track.addCheckpoint(0, 12, -2, 16, 6, 1, 0);         // start/finish
-  track.addCheckpoint(42, 10, -18, 1, 6, 16, 1);       // east building
-  track.addCheckpoint(18,  14, 17, 1, 6, 14, 2);       // high bridge
-  track.addCheckpoint(-18, 10, 4,  16, 6, 1, 3);       // west rooftop
+  // Section D: bottom-right corner (elevated)  →  x:-10..92, z:-42..-18
+  track.addPlatform(41, 8, -30, 102, H, 24, HIGH);
+  track.addWall(41, 10, -44, 104, 4, 1, 0x220044);
+  track.addWall(93, 10, -30,   1, 4, 26, 0x220044);
 
-  // ── Ability boxes ──
-  track.addAbilityBox( 0,  12,  -30);
-  track.addAbilityBox(42,  10,  -30);
-  track.addAbilityBox(42,  14,   10);
-  track.addAbilityBox(20,  14,   17);
-  track.addAbilityBox(  0, 14,   17);
-  track.addAbilityBox(-18, 10,    4);
+  track.addObstacle(41, 8.8, -30, 3, 1.5, 3, OBS);
 
-  // ── Spawn points ──
+  // ── STEP RAMP DOWN: elevated (y=8) → ground (y=0) ───────────────────────
+  // Section E: bottom straight -X at z=-38 → goes from x=30 down to x=-60
+  // Ramp heading -X: z=-48..-28, x from 25 down to -70
+  addRamp(-20, 8, 0, -20, -48, W);   // ramp downward heading -Z? Let me do X direction instead
+  // Actually use a wide downward ramp in the Z direction at x=-10:
+  track.addPlatform(-10, 4, -43, W, H, 14, CONC);  // mid-step
+  track.addPlatform(-10, 0, -55, W, H, 14, CONC);  // bottom step
+
+  // ── GROUND LEVEL AGAIN ────────────────────────────────────────────────────
+
+  // Section E: ground straight +Z  →  x:-21..-1, z:-60..60
+  track.addPlatform(-11, 0, 0, W, H, 120, CONC);
+  track.addWall(-22, 2, 0, 1, 4, 122, 0x111122);
+  track.addWall(  0, 2, 0, 1, 4, 122, 0x111122);
+
+  track.addObstacle(-7,  0.8,  30, 3, 1.5, 3, OBS);
+  track.addObstacle(-15, 0.8, -15, 3, 1.5, 3, OBS);
+
+  // Top-left return corner  x:-22..12, z:60..92
+  track.addPlatform(-5, 0, 76, 34, H, 32, CONC);
+  track.addWall(-5, 2, 93, 36, 4, 1, 0x111122);
+
+  // ── CHECKPOINTS ──────────────────────────────────────────────────────────
+  // CP0 start/finish — gate at z=-4 on section A
+  track.addCheckpoint(0,   2,  -4,  24, 6,  1, 0);
+  // CP1 — gate at x=70 on section B corner (cars going +X)
+  track.addCheckpoint(60,  2,  76,   1, 6, 30, 1);
+  // CP2 — gate at z=-3 on elevated section C (cars going -Z, at y=8)
+  track.addCheckpoint(80, 10,  -3,  24, 6,  1, 2);
+  // CP3 — gate at x=-10 on section E (cars going -X, z=-30)
+  track.addCheckpoint(-11, 2, -30,  24, 6,  1, 3);
+
+  // ── ABILITY BOXES ─────────────────────────────────────────────────────────
+  track.addAbilityBox(  0, 1.5,  20);
+  track.addAbilityBox(  0, 1.5,  55);
+  track.addAbilityBox( 40, 1.5,  76);
+  track.addAbilityBox( 80, 9.5,  15);
+  track.addAbilityBox( 80, 9.5, -15);
+  track.addAbilityBox( 40, 9.5, -30);
+  track.addAbilityBox(-11, 1.5,  10);
+  track.addAbilityBox(-11, 1.5, -25);
+
+  // ── SPAWN POINTS ──────────────────────────────────────────────────────────
   track.spawnPoints = [
-    { pos: new THREE.Vector3(-2, 11.5, -4), rot: Math.PI },
-    { pos: new THREE.Vector3( 2, 11.5, -4), rot: Math.PI },
+    { pos: new THREE.Vector3(-3, 1, -12), rot: Math.PI },
+    { pos: new THREE.Vector3( 3, 1, -12), rot: Math.PI },
   ];
 
-  // ── Neon building pillars (decoration) ──
-  const buildingData = [
-    [30, 4, 30, 8, 10, 8, 0x110033],
-    [-30, 3, 30, 6, 7, 6, 0x001133],
-    [60,  5, -30, 10, 12, 10, 0x220011],
-    [-40, 4, -50, 7, 9, 7, 0x003311],
-  ];
-  buildingData.forEach(([x, y, z, w, h, d, col]) => {
+  // ── NEON POINT LIGHTS ─────────────────────────────────────────────────────
+  [[0x00ffff, 40, 10, 76], [0xff00ff, 80, 15, -3], [0xff8800, -11, 8, -30]].forEach(([color, x, y, z]) => {
+    const light = new THREE.PointLight(color, 3, 50);
+    light.position.set(x, y, z);
+    scene.add(light);
+  });
+
+  // ── BUILDING DECORATIONS ──────────────────────────────────────────────────
+  [[120, 5, 40], [-50, 6, 20], [130, 7, -40], [-50, 4, -60]].forEach(([x, y, z]) => {
     const b = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      new THREE.MeshLambertMaterial({ color: col })
+      new THREE.BoxGeometry(12, y * 2, 12),
+      new THREE.MeshLambertMaterial({ color: 0x110022 })
     );
     b.position.set(x, y, z);
     track.group.add(b);
-  });
-
-  // ── Neon point lights ──
-  const neonColors = [0xff00ff, 0x00ffff, 0xff8800, 0x00ff44];
-  neonColors.forEach((c, i) => {
-    const light = new THREE.PointLight(c, 2, 30);
-    light.position.set(-20 + i * 20, 15, 10 + i * 5);
-    scene.add(light);
   });
 
   return track;

@@ -594,13 +594,15 @@ export class Game {
   }
 
   teleportForward(car) {
-    const fwd    = new THREE.Vector3(0, 0, -1).applyEuler(car.mesh.rotation);
-    const newPos = car.mesh.position.clone().addScaledVector(fwd, 24);
-    const ground = this.track.getGroundAt(newPos);
-    if (ground.hit) {
-      car.mesh.position.copy(newPos);
-      car.mesh.position.y = ground.y + 0.5;
-      car.velocity.set(0, 0, 0);
+    const pi     = this.cars.indexOf(car);
+    const player = this.players[pi >= 0 ? pi : 0];
+    // Teleport to the middle of the next (proceeding) checkpoint
+    const nextCP = this.track.checkpoints.find(c => c.index === player.checkpointIndex);
+    if (nextCP) {
+      car.mesh.position.copy(nextCP.pos);
+      car.mesh.position.y = nextCP.pos.y + 2;
+      // Keep forward momentum direction, reduce speed slightly
+      car.velocity.multiplyScalar(0.4);
     }
   }
 
