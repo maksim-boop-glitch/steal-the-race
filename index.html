@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Steal the Race</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+    canvas { display: block; }
+
+    #ui {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; color: #fff;
+    }
+    #ui.interactive { pointer-events: all; }
+
+    .screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.88);
+    }
+    .screen.hidden { display: none; }
+
+    h1.title {
+      font-size: 5rem; color: #ff2222;
+      text-shadow: 0 0 20px #ff2222, 0 0 50px #ff0000;
+      margin-bottom: 0.3rem; letter-spacing: 4px;
+    }
+    .subtitle { color: #888; margin-bottom: 2.5rem; font-size: 1rem; letter-spacing: 2px; }
+    h2 { font-size: 2rem; color: #ffdd00; margin-bottom: 1.5rem; }
+    p.desc { color: #aaa; margin-bottom: 1.5rem; max-width: 600px; text-align: center; }
+
+    button {
+      background: #111; color: #fff; border: 2px solid #ff2222;
+      padding: 0.75rem 2.5rem; font-size: 1.1rem; cursor: pointer;
+      margin: 0.4rem; font-family: 'Courier New', monospace;
+      transition: all 0.15s; pointer-events: all; letter-spacing: 1px;
+    }
+    button:hover { background: #ff2222; color: #000; }
+    button:disabled { border-color: #444; color: #444; pointer-events: none; }
+
+    .btn-row { display: flex; flex-wrap: wrap; justify-content: center; }
+
+    /* HUD */
+    #hud {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .player-panel {
+      position: absolute; top: 8px;
+      background: rgba(0,0,0,0.65); border: 1px solid #444;
+      padding: 6px 10px; min-width: 220px;
+    }
+    .player-panel.p1 { left: 8px; border-color: #ff4444; }
+    .player-panel.p2 { right: 8px; border-color: #4488ff; }
+    .player-name { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+    .p1 .player-name { color: #ff6666; }
+    .p2 .player-name { color: #6699ff; }
+    .lap-sp { font-size: 0.75rem; color: #ccc; margin-bottom: 5px; }
+    .ability-bar { display: flex; gap: 4px; }
+    .ability-slot {
+      width: 38px; height: 38px; border: 1.5px solid #555;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; font-size: 7px; text-align: center;
+      background: rgba(0,0,0,0.5); position: relative; overflow: hidden;
+    }
+    .ability-slot .slot-key {
+      position: absolute; top: 1px; left: 2px;
+      font-size: 7px; color: #777;
+    }
+    .ability-slot .slot-name { font-size: 6px; line-height: 1.2; padding-top: 8px; }
+    .ability-slot.common    { border-color: #888; }
+    .ability-slot.uncommon  { border-color: #44ff44; }
+    .ability-slot.rare      { border-color: #4466ff; }
+    .ability-slot.legendary { border-color: #ff8800; }
+    .ability-slot.empty     { border-color: #333; }
+
+    /* Center info */
+    #center-info {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none;
+    }
+    #countdown {
+      font-size: 10rem; font-weight: bold; color: #ff2222;
+      text-shadow: 0 0 40px #ff0000; line-height: 1;
+    }
+    #lap-notice {
+      font-size: 2rem; color: #ffdd00; text-shadow: 0 0 15px #ffaa00;
+    }
+    #finish-notice {
+      font-size: 2.5rem; color: #fff; text-shadow: 0 0 20px #fff;
+    }
+
+    /* Skill select */
+    .skill-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 700px; }
+    .skill-card {
+      background: #111; border: 2px solid #444;
+      padding: 12px 16px; cursor: pointer; width: 200px;
+      pointer-events: all; transition: all 0.15s;
+    }
+    .skill-card:hover, .skill-card.selected { border-color: #ffdd00; background: #1a1a00; }
+    .skill-card h3 { color: #ffdd00; margin-bottom: 4px; font-size: 1rem; }
+    .skill-card p { color: #aaa; font-size: 0.8rem; }
+
+    /* Keybind display */
+    .keybind-table { border-collapse: collapse; margin: 0 1rem; }
+    .keybind-table td { padding: 4px 12px; font-size: 0.9rem; }
+    .keybind-table td:first-child { color: #ffdd00; text-align: right; }
+    .keybind-table td:last-child { color: #aaa; }
+    .keybind-section { display: inline-block; vertical-align: top; margin: 0 20px; }
+    .keybind-section h3 { color: #ff6666; margin-bottom: 8px; }
+    .p2-binds h3 { color: #6699ff; }
+    .keybind-row { display: flex; gap: 40px; }
+
+    /* Map select */
+    .map-grid { display: flex; gap: 20px; justify-content: center; }
+    .map-card {
+      background: #111; border: 2px solid #444;
+      padding: 20px 24px; cursor: pointer; width: 180px; text-align: center;
+      pointer-events: all; transition: all 0.15s;
+    }
+    .map-card:hover { border-color: #ff2222; background: #1a0000; }
+    .map-card h3 { color: #ff8888; margin-bottom: 6px; font-size: 1.1rem; }
+    .map-card p { color: #888; font-size: 0.8rem; }
+
+    /* Post race */
+    .results-table { border-collapse: collapse; font-size: 1.1rem; }
+    .results-table th { color: #ffdd00; padding: 6px 20px; border-bottom: 1px solid #444; }
+    .results-table td { padding: 6px 20px; color: #ccc; }
+    .results-table tr:nth-child(1) td { color: #ffd700; }
+    .results-table tr:nth-child(2) td { color: #c0c0c0; }
+
+    /* split line */
+    #split-line {
+      position: absolute; top: 0; left: 50%; width: 2px; height: 100%;
+      background: #333; pointer-events: none; display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui"></div>
+  <div id="split-line"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
