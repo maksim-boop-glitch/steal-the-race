@@ -228,18 +228,58 @@ export class UI {
     setTimeout(() => { if (el) el.innerHTML = ''; }, duration);
   }
 
+  // ── Podium overlay ────────────────────────────────────────────────────────
+
+  showPodiumOverlay(finishOrder, playerCount, timing) {
+    this._clear();
+    const medals = ['🥇','🥈','🥉'];
+    const places = ['1ST','2ND','3RD'];
+    const names  = (pi, pc) => pi >= pc ? 'AI' : `Player ${pi + 1}`;
+    const fmt    = s => { const m = Math.floor(s/60); const ss = (s%60).toFixed(2).padStart(5,'0'); return m > 0 ? `${m}:${ss}` : `${ss}s`; };
+
+    const podiumCards = finishOrder.slice(0, 3).map((pi, i) => {
+      const laps = (timing[pi]?.lapTimes || []).map((t, li) => `<span>Lap ${li+1}: ${fmt(t)}</span>`).join(' · ');
+      const total = timing[pi]?.lapTimes.reduce((a,b)=>a+b,0) || 0;
+      const color = pi === 0 ? '#ff6666' : '#6699ff';
+      return `<div style="text-align:center;margin:0 16px;">
+        <div style="font-size:2.5rem">${medals[i]}</div>
+        <div style="font-size:1.4rem;font-weight:bold;color:${color};margin:4px 0">${names(pi, playerCount)}</div>
+        <div style="font-size:1rem;color:#ffdd00">${places[i]}</div>
+        <div style="font-size:0.75rem;color:#aaa;margin-top:6px">${laps || '—'}</div>
+        <div style="font-size:0.85rem;color:#fff;margin-top:4px">Total: ${fmt(total)}</div>
+      </div>`;
+    }).join('');
+
+    this.el.innerHTML = `
+      <div style="position:absolute;top:0;left:0;width:100%;padding-top:30px;
+        text-align:center;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,0.75) 0%,transparent 100%);">
+        <h1 style="font-size:3rem;color:#ffd700;text-shadow:0 0 30px #ffd700,0 0 60px #ffd700;margin:0;letter-spacing:4px">
+          🏆 RACE COMPLETE 🏆
+        </h1>
+        <p style="color:#888;font-size:0.85rem;margin:6px 0 20px">Results in a moment…</p>
+        <div style="display:flex;justify-content:center;align-items:flex-end;gap:0">
+          ${podiumCards}
+        </div>
+      </div>`;
+  }
+
   // ── Post Race ─────────────────────────────────────────────────────────────
 
   showPostRace(results, onContinue) {
     this._clear();
     this.el.classList.add('interactive');
+    const fmt  = s => { const m = Math.floor(s/60); const ss = (s%60).toFixed(2).padStart(5,'0'); return m > 0 ? `${m}:${ss}` : `${ss}s`; };
     const rows = results.map((r, i) => {
       const medal = ['🥇','🥈','🥉',''][i] || '';
+      const name  = r.isAI ? 'AI' : `Player ${r.playerIndex + 1}`;
+      const color = r.playerIndex === 0 ? '#ff6666' : '#6699ff';
+      const laps  = (r.lapTimes || []).map((t,li)=>`<small>L${li+1}:${fmt(t)}</small>`).join(' ');
       return `<tr>
-        <td>${medal} ${i + 1}${['st','nd','rd','th'][i] || 'th'}</td>
-        <td style="color:${r.playerIndex === 0 ? '#ff6666':'#6699ff'}">Player ${r.playerIndex + 1}</td>
-        <td>+${r.spEarned} SP</td>
-        <td>${r.totalSP} SP total</td>
+        <td>${medal} ${['1st','2nd','3rd','4th'][i]||''}</td>
+        <td style="color:${color}">${name}</td>
+        <td>${fmt(r.raceTime || 0)}</td>
+        <td>${laps || '—'}</td>
+        <td>${r.isAI ? '—' : `+${r.spEarned} SP (${r.totalSP} total)`}</td>
       </tr>`;
     }).join('');
 
@@ -247,7 +287,7 @@ export class UI {
       <div class="screen">
         <h2>Race Results</h2>
         <table class="results-table">
-          <thead><tr><th>Place</th><th>Player</th><th>Earned</th><th>Total</th></tr></thead>
+          <thead><tr><th>Place</th><th>Driver</th><th>Time</th><th>Laps</th><th>Skill Points</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
         <br>
