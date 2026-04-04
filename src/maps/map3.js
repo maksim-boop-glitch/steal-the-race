@@ -20,9 +20,9 @@ export function createMap3(scene) {
   track.sky  = 0x0a0a2a;
   track.deathY = -50;
 
-  const CONC = 0x333344;
-  const NEON = 0x1a1a44;
-  const HIGH = 0x221133;
+  const CONC = 0x4a7aaa;
+  const NEON = 0x3a6590;
+  const HIGH = 0x7a3aaa;
   const OBS  = 0xff2266;
   const W    = 22;
   const H    = 1;
@@ -42,13 +42,13 @@ export function createMap3(scene) {
 
   // Section A: start straight +Z  →  x:-11..11, z:-20..70
   track.addPlatform(0, 0, 25, W, H, 90, CONC);
-  track.addWall(-12, 2, 25, 1, 4, 92, 0x111122);
-  track.addWall( 12, 2, 25, 1, 4, 92, 0x111122);
+  track.addWall(-12, 2, 25, 1, 4, 92, 0x2a5a8a);
+  track.addWall( 12, 2, 25, 1, 4, 92, 0x2a5a8a);
 
   // Section B: top-left corner (ground) →  x:-11..80, z:62..90
   track.addPlatform(35, 0, 76, 92, H, 28, CONC);
-  track.addWall(35, 2, 91, 94, 4, 1, 0x111122);
-  track.addWall(-13, 2, 76, 1, 4, 30, 0x111122);
+  track.addWall(35, 2, 91, 94, 4, 1, 0x2a5a8a);
+  track.addWall(-13, 2, 76, 1, 4, 30, 0x2a5a8a);
 
   track.addObstacle(10, 0.8, 76, 3, 1.5, 3, OBS);
   track.addObstacle(55, 0.8, 76, 3, 1.5, 3, OBS);
@@ -62,16 +62,16 @@ export function createMap3(scene) {
 
   // Section C: elevated straight -Z  →  x:69..91, z:-30..24
   track.addPlatform(80, 8, -3, W, H, 54, HIGH);
-  track.addWall(69, 10, -3, 1, 4, 56, 0x220044);
-  track.addWall(91, 10, -3, 1, 4, 56, 0x220044);
+  track.addWall(69, 10, -3, 1, 4, 56, 0x6a2a9a);
+  track.addWall(91, 10, -3, 1, 4, 56, 0x6a2a9a);
 
   track.addObstacle(76, 8.8,  10, 3, 1.5, 3, OBS);
   track.addObstacle(84, 8.8, -20, 3, 1.5, 3, OBS);
 
   // Section D: bottom-right corner (elevated)  →  x:-10..92, z:-42..-18
   track.addPlatform(41, 8, -30, 102, H, 24, HIGH);
-  track.addWall(41, 10, -44, 104, 4, 1, 0x220044);
-  track.addWall(93, 10, -30,   1, 4, 26, 0x220044);
+  track.addWall(41, 10, -44, 104, 4, 1, 0x6a2a9a);
+  track.addWall(93, 10, -30,   1, 4, 26, 0x6a2a9a);
 
   track.addObstacle(41, 8.8, -30, 3, 1.5, 3, OBS);
 
@@ -87,15 +87,15 @@ export function createMap3(scene) {
 
   // Section E: ground straight +Z  →  x:-21..-1, z:-60..60
   track.addPlatform(-11, 0, 0, W, H, 120, CONC);
-  track.addWall(-22, 2, 0, 1, 4, 122, 0x111122);
-  track.addWall(  0, 2, 0, 1, 4, 122, 0x111122);
+  track.addWall(-22, 2, 0, 1, 4, 122, 0x2a5a8a);
+  track.addWall(  0, 2, 0, 1, 4, 122, 0x2a5a8a);
 
   track.addObstacle(-7,  0.8,  30, 3, 1.5, 3, OBS);
   track.addObstacle(-15, 0.8, -15, 3, 1.5, 3, OBS);
 
   // Top-left return corner  x:-22..12, z:60..92
   track.addPlatform(-5, 0, 76, 34, H, 32, CONC);
-  track.addWall(-5, 2, 93, 36, 4, 1, 0x111122);
+  track.addWall(-5, 2, 93, 36, 4, 1, 0x2a5a8a);
 
   // ── CHECKPOINTS ──────────────────────────────────────────────────────────
   // CP0 start/finish — gate at z=-4 on section A
